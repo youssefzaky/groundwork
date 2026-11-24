@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Groundwork earthmoving LBM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/* A site-plan sheet: survey paper and drafting ink, with the machine's orange and the truck's teal as the only colors.
+   Layout: a report's single reading column beside a contents rail; figures take the column's full width. */
+:root {
+  color-scheme: light;
+  --paper: #f3f4ef;
+  --surface: #ffffff;
+  --ink: #1c2321;
+  --ink-2: #4b5550;
+  --muted: #6a736e;
+  --rule: #d3d7cd;
+  --machine: #c2570c;
+  --machine-ink: #a3470a;
+  --truck: #00897b;
+  --tint: #fbeee3;
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16.5px/1.6 var(--body); }
+a { color: var(--machine-ink); text-underline-offset: 2px; }
+a:focus-visible, .mark:focus-visible, video:focus-visible { outline: 2px solid var(--machine); outline-offset: 2px; }
+img, video { display: block; max-width: 100%; height: auto; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.08; }
+h1 { font-size: clamp(2.2rem, 4.8vw, 3.4rem); font-weight: 700; letter-spacing: -0.005em; }
+h2 { font-size: 2.1rem; font-weight: 600; margin-bottom: 0.7rem; }
+h3 { font-size: 1.32rem; font-weight: 600; margin: 1.9rem 0 0.5rem; }
+p { margin: 0 0 0.95rem; }
+p, ul, ol { max-width: 68ch; }
+ul, ol { padding-left: 1.25rem; margin: 0 0 1rem; }
+li { margin-bottom: 0.35rem; }
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 32px); }
+
+header.top { border-bottom: 1px solid var(--rule); padding: clamp(28px, 5vw, 56px) 0 clamp(20px, 3vw, 32px); }
+.top-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(16px, 3vw, 40px); align-items: center; }
+.eyebrow { font: 500 0.8rem/1.3 var(--mono); color: var(--muted); margin: 0 0 0.8rem; }
+.byline { font: 500 1rem/1.3 var(--body); color: var(--ink-2); margin: 0.7rem 0 0; }
+.lede { font-size: 1.16rem; line-height: 1.5; margin: 1rem 0 0; color: var(--ink); }
+.contour figcaption { margin-top: 0; }
+
+.layout { display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); padding-top: 28px; }
+nav.rail { position: sticky; top: 20px; align-self: start; font-size: 0.92rem; }
+nav.rail ol { list-style: none; padding: 0; margin: 0; }
+nav.rail li { margin: 0; }
+nav.rail a { display: block; padding: 5px 0 5px 10px; border-left: 2px solid var(--rule); color: var(--ink-2); text-decoration: none; }
+nav.rail a:hover { border-left-color: var(--machine); color: var(--ink); }
+main { min-width: 0; }
+section { padding: 26px 0 30px; border-bottom: 1px solid var(--rule); scroll-margin-top: 12px; }
+section:last-child { border-bottom: 0; }
+
+.callout { background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--machine); border-radius: 4px; padding: 14px 18px; margin: 0 0 22px; max-width: none; }
+.callout p { margin: 0; max-width: 78ch; }
+.callout strong { font-weight: 600; }
+.note { font-size: 0.9rem; color: var(--ink-2); }
+
+figure { margin: 18px 0 22px; }
+figcaption { font-size: 0.87rem; line-height: 1.45; color: var(--ink-2); margin-top: 8px; max-width: 78ch; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 12px; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.clips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
+.clips figure { margin: 0; }
+.clips figcaption { margin-top: 5px; font-size: 0.84rem; }
+.clips figcaption strong { color: var(--ink); font-weight: 600; }
+.six figure { margin: 0; }
+.six figcaption { margin-top: 3px; font: 400 0.78rem/1.35 var(--mono); }
+video, .six img, .pair img, .clips img { border-radius: 3px; width: 100%; background: #dfe2d8; }
+
+svg.diagram, svg.chart { display: block; width: 100%; min-width: 700px; height: auto; font-family: var(--body); color: var(--ink); }
+svg .box { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1; }
+svg .box.built { fill: var(--tint); stroke: var(--machine); stroke-width: 1.5; }
+svg .box.planned { fill: none; stroke: var(--muted); stroke-dasharray: 4 3; }
+svg .box.hot { fill: var(--machine); stroke: var(--machine); }
+svg .group { fill: none; stroke: var(--rule); stroke-width: 1; }
+svg .name { font-size: 13px; font-weight: 600; fill: var(--ink); }
+svg .note { font-size: 11.5px; fill: var(--ink-2); }
+svg .name.onhot, svg .note.onhot { fill: #ffffff; }
+svg .head { font-size: 13px; font-weight: 600; fill: var(--ink); }
+svg .edge { font-size: 11.5px; fill: var(--ink-2); }
+svg .edge.strong { font-weight: 600; fill: var(--machine-ink); font-size: 12.5px; }
+svg .flow { fill: none; stroke: var(--ink-2); stroke-width: 1.5; }
+svg .flow.hot { stroke: var(--machine); stroke-width: 2; }
+svg .flow.dashed { stroke-dasharray: 4 3; }
+svg .grid { stroke: #e4e7df; stroke-width: 1; }
+svg .axis { stroke: var(--muted); stroke-width: 1; }
+svg .tick { font-size: 11.5px; fill: var(--muted); font-family: var(--mono); }
+svg .label { font-size: 13px; fill: var(--ink); }
+svg .sub { font-size: 12px; fill: var(--ink-2); }
+svg .value { font-size: 12px; fill: var(--ink); font-family: var(--mono); }
+.mark { cursor: default; outline: none; }
+.mark:hover path, .mark:focus-visible path { opacity: 0.82; }
+.mark:hover circle:last-child, .mark:focus-visible circle:last-child { stroke-width: 3; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.86rem; color: var(--ink-2); margin: 0 0 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 2px solid var(--muted); }
+#tip { position: fixed; z-index: 10; pointer-events: none; display: none; background: var(--ink); color: #fff; padding: 6px 9px; border-radius: 4px; font-size: 0.83rem; line-height: 1.35; max-width: 300px; }
+#tip b { display: block; font-weight: 600; font-family: var(--mono); font-size: 0.86rem; }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; background: var(--surface); }
+caption { text-align: left; font-size: 0.87rem; color: var(--ink-2); padding: 9px 10px 7px; caption-side: top; }
+.instruction { font: 400 0.82rem/1.4 var(--mono); color: var(--ink-2); }
+.ci { color: var(--muted); font-weight: 400; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+thead th { font-weight: 600; font-size: 0.84rem; color: var(--ink-2); border-bottom: 1px solid var(--muted); }
+tbody th { font-weight: 500; }
+td.num, th.num, .numeric td { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 0.87rem; white-space: nowrap; }
+.tablewrap { border: 1px solid var(--rule); border-radius: 4px; overflow-x: auto; margin: 14px 0 20px; }
+.tablewrap table { min-width: 620px; }
+.tablewrap tr:last-child th, .tablewrap tr:last-child td { border-bottom: 0; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.8rem; line-height: 1.5; white-space: nowrap; border: 1px solid var(--rule); color: var(--ink-2); }
+.pill.done { background: var(--machine); border-color: var(--machine); color: #fff; }
+.pill.part { background: var(--tint); border-color: var(--machine); color: var(--machine-ink); }
+.pill.next { border-style: dashed; border-color: var(--muted); }
+.cite { font: 400 0.72em/1 var(--mono); vertical-align: 0.28em; margin-left: 1px; text-decoration: none; }
+
+.milestones { display: grid; gap: 8px; margin: 14px 0 22px; padding: 0; list-style: none; max-width: none; }
+.milestones li { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 12px; align-items: baseline; margin: 0; padding: 10px 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; }
+.milestones .m { font: 600 1.25rem/1 var(--display); color: var(--ink); }
+.milestones .now { border-left: 4px solid var(--machine); }
+.milestones p { margin: 0; font-size: 0.95rem; }
+
+ol.refs { padding-left: 2.1rem; font-size: 0.92rem; line-height: 1.45; max-width: none; }
+ol.refs li { margin-bottom: 0.55rem; scroll-margin-top: 12px; }
+ol.refs li:target { background: var(--tint); }
+.used { display: block; color: var(--ink-2); font-size: 0.87rem; }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.rail { display: none; }
+  .top-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .clips { grid-template-columns: minmax(0, 1fr); }
+  .milestones li { grid-template-columns: 44px minmax(0, 1fr); }
+  .milestones .pill { grid-column: 2; justify-self: start; }
+  h2 { font-size: 1.85rem; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-grid">
+    <div>
+      <p class="eyebrow">Groundwork · simulation study · November 2026</p>
+      <h1>Large Behavior Models for Practical Earthmoving</h1>
+      <p class="byline">Youssef Zaky</p>
+      <p class="lede">The goal is earthmoving behavior that generalizes across tasks, soils and sites, and that is practical enough to work on real machines. This work applies the Large Behavior Model methodology to a 20 t hydraulic excavator in simulation: one policy is pretrained across many earthmoving behaviors, then fine-tuned to new tasks, soil conditions and machines.</p>
+    </div>
+    <figure class="contour">
+      <img src="media/contours.png" width="1088" height="561" alt="Contour lines of an elevation map showing a truck at the left, a stockpile at the right and the machine at the bottom center.">
+      <figcaption><strong>Figure 1.</strong> Contours of the elevation map at one frame of a recorded demonstration, in the region ahead of the machine (triangle). Left: truck (IC120 crawler carrier). Right: stockpile.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<div class="wrap layout">
+<nav class="rail" aria-label="Contents">
+  <ol>
+    <li><a href="#goal">1. Goal</a></li>
+    <li><a href="#recipe">2. Approach</a></li>
+    <li><a href="#behaviors">3. Behavior set</a></li>
+    <li><a href="#model">4. Policy architecture</a></li>
+    <li><a href="#data">5. Simulation and data</a></li>
+    <li><a href="#experiment">6. Experimental design</a></li>
+    <li><a href="#first">7. Single-task baseline</a></li>
+    <li><a href="#lessons">8. Findings</a></li>
+    <li><a href="#roadmap">9. Roadmap</a></li>
+    <li><a href="#references">References</a></li>
+  </ol>
+</nav>
+<main>
+
+<section id="goal">
+  <div class="callout"><p><strong>Current stage.</strong> The simulator, the data pipeline and the policy architecture are in place, and classical controllers for all eight behaviors run in the full simulator: seven succeed in at least 72% of episodes, and the trench controller in 44–53% (Table 1). A single-task policy completes truck loading in 72% of nominal and 59% of randomized episodes (Section 7). <strong>Next,</strong> these controllers generate the multi-task dataset, with DAgger rounds on every pretraining behavior. One policy is pretrained on it, fine-tuned to tasks it has not seen and compared with single-task training (Section 6), for which that policy is the baseline.</p></div>
+  <h2>1. Goal</h2>
+  <p>The aim is a policy that can dig, load, trench and grade across the soils, sites and machines found in practice, and that holds up on a real machine. Excavators execute a limited set of motions under widely varying conditions, and earthmoving differs from dexterous manipulation in ways that matter for learning: hydraulic actuation with lag and stall, soil properties observable only indirectly through cylinder pressure, and terrain that changes with each pass.</p>
+  <p>The route to that goal is the Large Behavior Model recipe: pretrain one policy across many behaviors, then fine-tune it to each new task. A central experiment measures what the recipe contributes: whether a pretrained policy learns a new task from fewer demonstrations, and generalizes better to unseen soils and sites, than a policy trained on that task alone.</p>
+  <p>Toyota Research Institute (TRI) reported this effect for dexterous manipulation. With approximately 1,700 hours of demonstrations spanning more than 500 tasks, policies fine-tuned from a pretrained model outperformed single-task training given the same task data, or matched it with 3–5× less data, and the difference increased under distribution shift<a class="cite" href="#ref-tri">[1]</a>. Fine-tuning was essential: pretrained policies without fine-tuning did not consistently outperform single-task training.</p>
+  <p>ExT, from ETH Zurich, applied multi-task pretraining to excavation, using four tasks, state-vector inputs and demonstrations from a reinforcement learning policy, a trajectory planner and a human operator, and executed dig-dump-move cycles on a full-scale excavator<a class="cite" href="#ref-ext">[18]</a>. This work builds on that direction. Its policy observes elevation maps first and adds cameras next. Its demonstrators are classical controllers with DAgger; human operators are a natural further source of demonstrations, although none are used here. It also adds a statistical protocol and a comparison of closed-loop methods. With eight behaviors rather than TRI's hundreds of tasks it works at a much smaller scale, and the experiment measures how large the effect is at that scale.</p>
+  <p>All results reported here were obtained in simulation.</p>
+  <figure>
+    <div class="pair">
+      <video controls muted playsinline preload="metadata" poster="media/clips/load_truck.jpg" width="854" height="480" aria-label="The excavator digging from the stockpile and loading the truck, viewed from outside"><source src="media/clips/load_truck.mp4" type="video/mp4"></video>
+      <video controls muted playsinline preload="metadata" poster="media/clips/load_truck_cab.jpg" width="854" height="480" aria-label="The same episode viewed from a camera on the cab"><source src="media/clips/load_truck_cab.mp4" type="video/mp4"></video>
+    </div>
+    <figcaption><strong>Video 1.</strong> The classical controller loading a truck on Isaac Lab, viewed from outside and from the cab at 3× speed, rendered with RTX by state replay.</figcaption>
+  </figure>
+</section>
+
+<section id="recipe">
+  <h2>2. Approach</h2>
+  <p>The approach combines two published methodologies:</p>
+  <ul>
+    <li><strong>Large Behavior Models</strong><a class="cite" href="#ref-tri">[1]</a>: pretrain one policy on many tasks, fine-tune it per task, and evaluate with sufficient rollouts and statistical rigor to establish differences.</li>
+    <li><strong>Open-loop pretraining followed by closed-loop post-training</strong>, as surveyed for autonomous driving by NVIDIA<a class="cite" href="#ref-beyondbc">[14]</a><a class="cite" href="#ref-alpagym">[42]</a>: train on demonstrations, then continue training in simulation. In this project, that stage follows pretraining (milestone M3).</li>
+  </ul>
+  <figure>
+    <div class="panel scroll"><svg class="diagram" viewBox="0 0 980 408" role="img" aria-label="Each behavior has a classical controller, whose demonstrations form one multi-task dataset used to pretrain one policy. The policy then acts while the controller of each behavior labels the visited states, and these DAgger rounds are added to the dataset. The pretrained policy is fine-tuned on held-out tasks and compared with a single-task model trained from scratch."><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" fill="#4b5550"/></marker><marker id="arrow-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" fill="#c2570c"/></marker></defs><text x="20" y="26" class="head">One controller per behavior</text><rect x="20" y="38" width="170" height="30" rx="4" class="box built"/><text x="105.0" y="57.0" class="name" text-anchor="middle">Dig</text><rect x="20" y="74" width="170" height="30" rx="4" class="box built"/><text x="105.0" y="93.0" class="name" text-anchor="middle">Swing</text><rect x="20" y="110" width="170" height="30" rx="4" class="box built"/><text x="105.0" y="129.0" class="name" text-anchor="middle">Dump to a truck</text><rect x="20" y="146" width="170" height="30" rx="4" class="box built"/><text x="105.0" y="165.0" class="name" text-anchor="middle">Dump to a pile</text><rect x="20" y="182" width="170" height="30" rx="4" class="box built"/><text x="105.0" y="201.0" class="name" text-anchor="middle">Abort and recover</text><rect x="20" y="218" width="170" height="30" rx="4" class="box built"/><text x="105.0" y="237.0" class="name" text-anchor="middle">Trench (held out)</text><rect x="20" y="254" width="170" height="30" rx="4" class="box built"/><text x="105.0" y="273.0" class="name" text-anchor="middle">Finish grading</text><rect x="20" y="290" width="170" height="30" rx="4" class="box built"/><text x="105.0" y="309.0" class="name" text-anchor="middle">Travel</text><path d="M190 184H290" class="flow " marker-end="url(#arrow)"/><text x="240" y="176" class="edge" text-anchor="middle">demonstrations</text><text x="240" y="201" class="edge" text-anchor="middle">DART noise,</text><text x="240" y="216" class="edge" text-anchor="middle">randomized initial</text><text x="240" y="231" class="edge" text-anchor="middle">conditions</text><rect x="290" y="124" width="170" height="120" rx="4" class="box "/><text x="375.0" y="173.0" class="name" text-anchor="middle">Multi-task dataset</text><text x="375.0" y="188.0" class="note" text-anchor="middle">demonstrations and</text><text x="375.0" y="203.0" class="note" text-anchor="middle">DAgger rounds</text><path d="M460 184H560" class="flow " marker-end="url(#arrow)"/><text x="510" y="176" class="edge" text-anchor="middle">pretrain</text><rect x="560" y="124" width="170" height="120" rx="4" class="box hot"/><text x="645.0" y="173.0" class="name onhot" text-anchor="middle">Pretrained policy</text><text x="645.0" y="188.0" class="note onhot" text-anchor="middle">instruction, map, state,</text><text x="645.0" y="203.0" class="note onhot" text-anchor="middle">machine embedding</text><path d="M645 124V68H375V124" class="flow hot" marker-end="url(#arrow-hot)"/><text x="510" y="46" class="edge strong" text-anchor="middle">DAgger, per behavior</text><text x="510" y="62" class="edge" text-anchor="middle">the policy acts; the behavior's controller labels the visited states</text><rect x="792" y="68" width="181" height="193" rx="4" class="group"/><path d="M730 184H792" class="flow " marker-end="url(#arrow)"/><text x="761" y="176" class="edge" text-anchor="middle">fine-tune</text><text x="882" y="84" class="head" text-anchor="middle">Held-out tasks</text><rect x="800" y="94" width="165" height="27" rx="4" class="box "/><text x="882.5" y="111.5" class="name" text-anchor="middle">Truck loading to target</text><rect x="800" y="126" width="165" height="27" rx="4" class="box "/><text x="882.5" y="143.5" class="name" text-anchor="middle">Trench to specification</text><rect x="800" y="158" width="165" height="27" rx="4" class="box "/><text x="882.5" y="175.5" class="name" text-anchor="middle">Digging in clay</text><rect x="800" y="190" width="165" height="27" rx="4" class="box "/><text x="882.5" y="207.5" class="name" text-anchor="middle">Held-out site</text><rect x="800" y="222" width="165" height="27" rx="4" class="box "/><text x="882.5" y="239.5" class="name" text-anchor="middle">ZX120, D37PXi dozer</text><rect x="560" y="276" width="170" height="44" rx="4" class="box "/><text x="645.0" y="294.5" class="name" text-anchor="middle">Single-task model</text><text x="645.0" y="309.5" class="note" text-anchor="middle">trained from scratch</text><path d="M730 298H761V230H792" class="flow " marker-end="url(#arrow)"/><text x="761" y="316" class="edge" text-anchor="middle">baseline</text><path d="M882 261V276" class="flow " marker-end="url(#arrow)"/><rect x="800" y="276" width="165" height="44" rx="4" class="box "/><text x="882.5" y="294.5" class="name" text-anchor="middle">RL post-training</text><text x="882.5" y="309.5" class="note" text-anchor="middle">M3</text><path d="M882 320V344" class="flow " marker-end="url(#arrow)"/><rect x="800" y="344" width="165" height="44" rx="4" class="box "/><text x="882.5" y="362.5" class="name" text-anchor="middle">Reality simulator</text><text x="882.5" y="377.5" class="note" text-anchor="middle">M4: final evaluation only</text><rect x="290" y="344" width="440" height="44" rx="4" class="box "/><text x="510.0" y="362.5" class="name" text-anchor="middle">Evaluation from logs</text><text x="510.0" y="377.5" class="note" text-anchor="middle">identical initial states, paired tests, 200 rollouts per task and condition</text></svg></div>
+    <figcaption><strong>Figure 2.</strong> Training and evaluation pipeline. Demonstrations are generated by a classical controller for each behavior, and DAgger adds that controller's corrections on the states visited by the policy. Held-out tasks compare the pretrained policy with the same model trained on a single task.</figcaption>
+  </figure>
+  <h3>What has to work</h3>
+  <ol>
+    <li><strong>Pretraining has to pay off.</strong> Training on diverse earthmoving behaviors should reduce the data required for new tasks and improve robustness to new soils and sites, and subsequently to new machines. Section 6 sets out how this is measured.</li>
+    <li><strong>The policy has to exceed its demonstrators.</strong> DAgger cannot exceed the controller that labels it. Reinforcement learning anchored to the pretrained policy by a KL penalty<a class="cite" href="#ref-ext">[18]</a>, or in the diffusion noise space<a class="cite" href="#ref-dsrl">[15]</a>, is the route beyond it, and its cost to other tasks is measured alongside its gain.</li>
+    <li><strong>The sim-to-real gap has to be understood.</strong> A separate reality simulator, with different soil physics, hydraulic wear, sensor noise and latency, is excluded from training, so that the performance gap can be attributed by cause.</li>
+    <li><strong>Skills have to compose into work.</strong> An embodied reasoning model translates work orders into sequences of skills.</li>
+  </ol>
+</section>
+
+<section id="behaviors">
+  <h2>3. Behavior set</h2>
+  <p>Eight excavator behaviors are defined. Seven are used for pretraining; trenching is held out, as is truck loading, so that fine-tuning on either measures what pretraining contributes to a new task (Section 6). Each has a closed-loop classical controller built on shared inverse kinematics, servo and digging-cycle components. The digging cycle follows the phases of a human operator<a class="cite" href="#ref-hemami">[25]</a><a class="cite" href="#ref-lucie">[26]</a> and reduces cut depth as cylinder pressures approach relief<a class="cite" href="#ref-jud">[24]</a>. Tasks are conveyed to the policy by an instruction and the elevation map: terrain above the design surface denotes material to excavate, and a raised design surface denotes a dump area or travel destination.</p>
+  <div class="tablewrap">
+    <table>
+      <caption><strong>Table 1.</strong> The behaviors, their instructions, and the success rates of their classical controllers on Isaac Lab, with 95% Wilson intervals (32 episodes per condition).</caption>
+      <thead><tr><th scope="col">Behavior</th><th scope="col">Instruction</th><th scope="col">Nominal</th><th scope="col">Randomized</th></tr></thead>
+      <tbody><tr><th scope="row">Dig</th><td class="instruction">dig a full bucket from the stockpile</td><td class="num">94% <span class="ci">(80–98%)</span></td><td class="num">88% <span class="ci">(72–95%)</span></td></tr><tr><th scope="row">Swing</th><td class="instruction">swing the loaded bucket over the truck</td><td class="num">100% <span class="ci">(89–100%)</span></td><td class="num">88% <span class="ci">(72–95%)</span></td></tr><tr><th scope="row">Dump to a truck</th><td class="instruction">dump the load into the truck</td><td class="num">100% <span class="ci">(89–100%)</span></td><td class="num">94% <span class="ci">(80–98%)</span></td></tr><tr><th scope="row">Dump to a pile</th><td class="instruction">move soil from the stockpile to the marked spoil area</td><td class="num">97% <span class="ci">(84–99%)</span></td><td class="num">97% <span class="ci">(84–99%)</span></td></tr><tr><th scope="row">Abort and recover</th><td class="instruction">stop work and bring the bucket to the safe pose</td><td class="num">100% <span class="ci">(89–100%)</span></td><td class="num">100% <span class="ci">(89–100%)</span></td></tr><tr><th scope="row">Trench (held out)</th><td class="instruction">dig the marked trench</td><td class="num">53% <span class="ci">(36–69%)</span></td><td class="num">44% <span class="ci">(28–61%)</span></td></tr><tr><th scope="row">Finish grading</th><td class="instruction">grade the marked area to the design surface</td><td class="num">100% <span class="ci">(89–100%)</span></td><td class="num">72% <span class="ci">(55–84%)</span></td></tr><tr><th scope="row">Travel</th><td class="instruction">drive to the marked pad</td><td class="num">100% <span class="ci">(89–100%)</span></td><td class="num">94% <span class="ci">(80–98%)</span></td></tr><tr><th scope="row">Full task: truck loading</th><td class="instruction">load the truck from the stockpile</td><td class="num">94% <span class="ci">(80–98%)</span></td><td class="num">84% <span class="ci">(68–93%)</span></td></tr></tbody>
+    </table>
+  </div>
+  <p class="note">Success is each behavior's own criterion, evaluated on simulator ground truth when the episode ends, on seeds 0–31 in both conditions. Both conditions vary the site and the initial state; the randomized condition also samples soil and machine parameters. With about ten randomized episodes per soil, no soil type stands out as a gap in coverage. Most trench failures are episodes that reach the time limit with soil remaining (11 of 32 nominal, 18 of 32 randomized). Only successful episodes enter the demonstration data.</p>
+  <h3>What goes into pretraining</h3>
+  <p>These are the controllers at work on randomized scenarios, each clip one recorded episode: the kind of demonstration the policy learns from. Lines on the ground show what the design surface marks in the policy's elevation map: a trench, an area to grade, a spoil area or a destination pad. The policy sees these as numbers in the map, not as painted lines. The trench clip shows a held-out task, whose demonstrations are reserved for fine-tuning.</p>
+  <figure>
+    <div class="clips"><figure><video controls muted loop playsinline preload="none" poster="media/clips/dig.jpg" width="854" height="480" aria-label="Dig: the classical controller on a randomized scenario"><source src="media/clips/dig.mp4" type="video/mp4"></video><figcaption><strong>Dig</strong>: dig a full bucket from the stockpile. <span class="ci">loam</span></figcaption></figure><figure><video controls muted loop playsinline preload="none" poster="media/clips/swing.jpg" width="854" height="480" aria-label="Swing: the classical controller on a randomized scenario"><source src="media/clips/swing.mp4" type="video/mp4"></video><figcaption><strong>Swing</strong>: swing the loaded bucket over the truck. <span class="ci">gravel</span></figcaption></figure><figure><video controls muted loop playsinline preload="none" poster="media/clips/dump_truck.jpg" width="854" height="480" aria-label="Dump to a truck: the classical controller on a randomized scenario"><source src="media/clips/dump_truck.mp4" type="video/mp4"></video><figcaption><strong>Dump to a truck</strong>: dump the load into the truck. <span class="ci">sand</span></figcaption></figure><figure><video controls muted loop playsinline preload="none" poster="media/clips/dump_pile.jpg" width="854" height="480" aria-label="Dump to a pile: the classical controller on a randomized scenario"><source src="media/clips/dump_pile.mp4" type="video/mp4"></video><figcaption><strong>Dump to a pile</strong>: move soil from the stockpile to the marked spoil area. <span class="ci">loam, 3× speed</span></figcaption></figure><figure><video controls muted loop playsinline preload="none" poster="media/clips/recover.jpg" width="854" height="480" aria-label="Abort and recover: the classical controller on a randomized scenario"><source src="media/clips/recover.mp4" type="video/mp4"></video><figcaption><strong>Abort and recover</strong>: stop work and bring the bucket to the safe pose. <span class="ci">gravel</span></figcaption></figure><figure><video controls muted loop playsinline preload="none" poster="media/clips/trench.jpg" width="854" height="480" aria-label="Trench (held out): the classical controller on a randomized scenario"><source src="media/clips/trench.mp4" type="video/mp4"></video><figcaption><strong>Trench (held out)</strong>: dig the marked trench. <span class="ci">loam, 3× speed</span></figcaption></figure><figure><video controls muted loop playsinline preload="none" poster="media/clips/grade.jpg" width="854" height="480" aria-label="Finish grading: the classical controller on a randomized scenario"><source src="media/clips/grade.mp4" type="video/mp4"></video><figcaption><strong>Finish grading</strong>: grade the marked area to the design surface. <span class="ci">gravel, 3× speed</span></figcaption></figure><figure><video controls muted loop playsinline preload="none" poster="media/clips/travel.jpg" width="854" height="480" aria-label="Travel: the classical controller on a randomized scenario"><source src="media/clips/travel.mp4" type="video/mp4"></video><figcaption><strong>Travel</strong>: drive to the marked pad. <span class="ci">gravel</span></figcaption></figure></div>
+    <figcaption><strong>Video 2.</strong> The eight behaviors, one randomized episode each, from their classical controllers on Isaac Lab, rendered with RTX by state replay. Clips play in real time unless marked otherwise. The recorded demonstrations add the noise described below.</figcaption>
+  </figure>
+  <h3>Composition of the demonstration data</h3>
+  <ul>
+    <li><strong>Consistent demonstrator.</strong> One operator per behavior, whose decisions use only quantities observable to the policy: the elevation map, joint states, cylinder pressures and IMU.</li>
+    <li><strong>Randomized initial conditions and scenes.</strong> Stockpile geometry and position, truck pose and preload, initial machine configuration, target payload, soil and physical parameters. Soil ranges are informed by measured geotechnical variability<a class="cite" href="#ref-phoon">[33]</a>.</li>
+    <li><strong>DART noise injection</strong><a class="cite" href="#ref-dart">[12]</a>. Noise is applied to the executed commands while the controller corrects, and the clean commands are retained as labels, so that the data include recovery behavior.</li>
+    <li><strong>Sensor noise</strong> on stored observations. The controller acts on noise-free observations.</li>
+    <li><strong>DAgger</strong><a class="cite" href="#ref-dagger">[11]</a>. The policy acts on new seeds while the behavior's controller labels the visited states. Because the controller infers its phase from the state, it can label arbitrary states. The expert retains a decaying share of control: Ross et al. obtained their best Super Mario Bros. result with such a schedule and suggest that it reduces data from stalled states.</li>
+    <li><strong>Low-motion frames</strong> are retained in pretraining. TRI observed that removing them degraded pretrained models, although it improved single-task policies in simulation<a class="cite" href="#ref-tri">[1]</a>.</li>
+  </ul>
+  <h3>Held-out tasks</h3>
+  <p>Truck loading to a target payload, trench excavation to specification, digging in clay, and operation at a held-out site. Truck loading and trenching are excluded from pretraining and its DAgger rounds: the policy learns their parts, such as digging, swinging, dumping and grading, but never sees the tasks themselves or their instructions. Subsequent work extends these tasks to the 12 t ZX120 and adds pad grading with the D37PXi dozer, both of which are already modeled in the simulator.</p>
+</section>
+
+<section id="model">
+  <h2>4. Policy architecture</h2>
+  <p>The policy, <code>groundwork_dit</code>, extends the <code>multi_task_dit</code> implementation in LeRobot<a class="cite" href="#ref-lerobot">[36]</a>, which follows TRI's architecture: a diffusion transformer<a class="cite" href="#ref-dit">[6]</a> trained with flow matching<a class="cite" href="#ref-flow">[5]</a>, conditioned on an instruction and observations, that predicts action chunks<a class="cite" href="#ref-act">[3]</a>. The extensions are an elevation-map encoder, a machine embedding, and per-machine action masks and state normalization, which allow one model to serve machines with different control interfaces.</p>
+  <p>Observations build up in stages: elevation maps first, of the kind LiDAR provides on a real machine, and then cameras. The policy receives the map in the cab's frame, turned with the boom, which proved to be the most effective single change in the map's representation (Section 8).</p>
+  <figure>
+    <div class="panel scroll"><svg class="diagram" viewBox="0 0 980 318" role="img" aria-label="Instruction, elevation map, state, machine identifier and cameras are encoded into one conditioning vector over two observation steps. A flow-matching diffusion transformer produces a 16-step chunk of joint targets, of which 8 are executed at 10 Hz through a servo that sets the operator commands."><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" fill="#4b5550"/></marker><marker id="arrow-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" fill="#c2570c"/></marker></defs><rect x="20" y="18" width="232" height="50" rx="4" class="box "/><text x="136.0" y="39.5" class="name" text-anchor="middle">Instruction</text><text x="136.0" y="54.5" class="note" text-anchor="middle">CLIP text encoder</text><path d="M252 43H290" class="flow "/><rect x="20" y="76" width="232" height="50" rx="4" class="box "/><text x="136.0" y="97.5" class="name" text-anchor="middle">Elevation map, 2 × 64 × 64</text><text x="136.0" y="112.5" class="note" text-anchor="middle">cab&#x27;s frame, keypoints, average</text><path d="M252 101H290" class="flow "/><rect x="20" y="134" width="232" height="50" rx="4" class="box "/><text x="136.0" y="155.5" class="name" text-anchor="middle">State, 32 slots</text><text x="136.0" y="170.5" class="note" text-anchor="middle">joints, speeds, pressures, IMU</text><path d="M252 159H290" class="flow "/><rect x="20" y="192" width="232" height="50" rx="4" class="box "/><text x="136.0" y="213.5" class="name" text-anchor="middle">Machine identifier</text><text x="136.0" y="228.5" class="note" text-anchor="middle">learned embedding</text><path d="M252 217H290" class="flow "/><rect x="20" y="250" width="232" height="50" rx="4" class="box "/><text x="136.0" y="271.5" class="name" text-anchor="middle">Cameras</text><text x="136.0" y="286.5" class="note" text-anchor="middle">CLIP ViT-B/16</text><path d="M252 275H290" class="flow "/><path d="M290 43V275" class="flow"/><path d="M290 159H326" class="flow " marker-end="url(#arrow)"/><rect x="326" y="106" width="134" height="106" rx="4" class="box "/><text x="393.0" y="140.5" class="name" text-anchor="middle">Conditioning</text><text x="393.0" y="155.5" class="note" text-anchor="middle">one vector over</text><text x="393.0" y="170.5" class="note" text-anchor="middle">2 observation</text><text x="393.0" y="185.5" class="note" text-anchor="middle">steps</text><path d="M460 159H500" class="flow " marker-end="url(#arrow)"/><rect x="500" y="106" width="158" height="106" rx="4" class="box hot"/><text x="579.0" y="140.5" class="name onhot" text-anchor="middle">Diffusion</text><text x="579.0" y="155.5" class="note onhot" text-anchor="middle">transformer</text><text x="579.0" y="170.5" class="note onhot" text-anchor="middle">flow matching,</text><text x="579.0" y="185.5" class="note onhot" text-anchor="middle">10 integration steps</text><path d="M658 159H698" class="flow " marker-end="url(#arrow)"/><rect x="698" y="106" width="124" height="106" rx="4" class="box "/><text x="760.0" y="140.5" class="name" text-anchor="middle">Action chunk</text><text x="760.0" y="155.5" class="note" text-anchor="middle">16 joint targets</text><text x="760.0" y="170.5" class="note" text-anchor="middle">relative to the</text><text x="760.0" y="185.5" class="note" text-anchor="middle">observed pose</text><path d="M822 159H850" class="flow " marker-end="url(#arrow)"/><rect x="850" y="106" width="115" height="106" rx="4" class="box "/><text x="907.5" y="140.5" class="name" text-anchor="middle">Joint servo</text><text x="907.5" y="155.5" class="note" text-anchor="middle">8 executed at</text><text x="907.5" y="170.5" class="note" text-anchor="middle">10 Hz, then</text><text x="907.5" y="185.5" class="note" text-anchor="middle">replanned</text></svg></div>
+    <figcaption><strong>Figure 3.</strong> Policy architecture: LeRobot's default transformer (width 512, 6 layers) with CLIP<a class="cite" href="#ref-clip">[7]</a> image and text encoders.</figcaption>
+  </figure>
+  <figure>
+    <div class="panel"><img src="media/policy_map.png" width="1480" height="700" alt="Two 64 by 64 maps centered on the machine: height, showing the truck and the stockpile, and terrain above the design surface, showing only the stockpile."></div>
+    <figcaption><strong>Figure 4.</strong> The elevation map at one frame of a demonstration, including sensor noise and as the simulator provides it, fixed to the tracks: 64 × 64 cells of 0.3 m centered on the machine (triangle). The truck appears in the height channel but not in the second channel, which gives terrain relative to the design surface, the convention used by machine-control systems.</figcaption>
+  </figure>
+</section>
+
+<section id="data">
+  <h2>5. Simulation and data generation</h2>
+  <p>Simulation uses Isaac Lab<a class="cite" href="#ref-isaaclab">[34]</a> with Newton physics<a class="cite" href="#ref-newton">[35]</a> and runs hundreds of excavators in a single process. The machine is modeled as a free-base articulation on its tracks, so that tipping, sliding and rocking arise from the applied forces. Custom PyTorch models provide the hydraulics, soil mechanics<a class="cite" href="#ref-reece">[27]</a><a class="cite" href="#ref-mckyes">[28]</a><a class="cite" href="#ref-egli">[22]</a><a class="cite" href="#ref-terzaghi">[29]</a>, bucket contents and track-terrain interaction<a class="cite" href="#ref-wong">[30]</a><a class="cite" href="#ref-scm">[31]</a><a class="cite" href="#ref-janosi">[32]</a>. Machine models derive from PWRI's OPERA<a class="cite" href="#ref-opera">[38]</a>. Demonstrations are recorded without rendering; images are generated afterward by state replay, so that rendering can be revised independently of the data.</p>
+  <div class="tablewrap">
+    <table>
+      <caption><strong>Table 2.</strong> Simulator validation against reference data, and recording throughput.</caption>
+      <thead><tr><th scope="col">Quantity</th><th scope="col">Simulated</th><th scope="col">Reference</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Swing speed</th><td>13.35 rpm</td><td>13.3 rpm, machine specification</td></tr>
+        <tr><th scope="row">Cylinder speeds</th><td>within 1.3%</td><td>Machine specification</td></tr>
+        <tr><th scope="row">Tipping loads</th><td>within 2–4%</td><td>Hitachi ZX200-5G lift chart</td></tr>
+        <tr><th scope="row">Soil cutting force</th><td>within 0.3%</td><td>Worked example in McKyes</td></tr>
+        <tr><th scope="row">Working ranges</th><td>within 1 cm</td><td>Hitachi published ranges</td></tr>
+        <tr><th scope="row">Recording throughput</th><td>91 frames/s with 200 machines</td><td>One L4 GPU; 200 demonstrations in 36 min</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figure>
+    <div class="six">
+      <figure><img src="media/moment_outside_0.jpg" width="854" height="480" alt="Bucket penetrating the stockpile"><figcaption>11.5 s: penetration</figcaption></figure>
+      <figure><img src="media/moment_outside_1.jpg" width="854" height="480" alt="Bucket dragging through the stockpile"><figcaption>13.0 s: drag</figcaption></figure>
+      <figure><img src="media/moment_outside_2.jpg" width="854" height="480" alt="Bucket curling to capture the soil"><figcaption>14.5 s: capture</figcaption></figure>
+      <figure><img src="media/moment_outside_3.jpg" width="854" height="480" alt="Loaded bucket lifted and swinging"><figcaption>17.0 s: swing</figcaption></figure>
+      <figure><img src="media/moment_outside_4.jpg" width="854" height="480" alt="Soil pouring from the open bucket into the truck"><figcaption>21.0 s: dump</figcaption></figure>
+      <figure><img src="media/moment_outside_5.jpg" width="854" height="480" alt="Bucket digging during the next cycle"><figcaption>29.0 s: next pass</figcaption></figure>
+    </div>
+    <figcaption><strong>Figure 5.</strong> One truck-loading cycle of the classical controller.</figcaption>
+  </figure>
+  <figure>
+    <div class="panel"><img src="media/initial_conditions.png" width="1800" height="615" alt="Twelve plan views of randomized scenarios with different stockpiles, truck positions and initial poses."></div>
+    <figcaption><strong>Figure 6.</strong> Twelve randomized truck-loading scenarios in plan view, each 16 m across: the stockpile shaded by height, the machine at the center with the direction of its arm, and the truck in teal. Each scenario also samples the soil type (sand, loam or gravel; clay is held out), hydraulic parameters, masses and target payload within realistic tolerances, from a single logged seed.</figcaption>
+  </figure>
+  <figure>
+    <img src="media/physics_sheet.jpg" width="1280" height="720" alt="Four renders of the machine: tipping under a load, standing on a slope, and leaning on the top of a stockpile." style="border-radius:3px">
+    <figcaption><strong>Figure 7.</strong> Base dynamics arising from the physics: tipping under a 1.4 t load on loam (top), standing on a 20° slope, and leaning on the stockpile after a swing.</figcaption>
+  </figure>
+  <figure>
+    <img src="media/variants.jpg" width="1720" height="484" alt="Eight appearance variants of the same moment, soil pouring into the truck, with different skies, soils and paint." style="border-radius:3px">
+    <figcaption><strong>Figure 8.</strong> Appearance randomization for camera observations: sky, soil texture, paint and exposure.</figcaption>
+  </figure>
+</section>
+
+<section id="experiment">
+  <h2>6. Experimental design</h2>
+  <p>The experiment pretrains one policy on the seven pretraining behaviors, fine-tunes it on each held-out task with progressively less of that task's data, and compares it with the same model trained on the task alone. It establishes how much data pretraining saves and how much robustness it adds under changes of soil and site. TRI found that many effects were measurable only with larger-than-standard sample sizes and careful statistical testing<a class="cite" href="#ref-tri">[1]</a>; the design therefore uses paired initial states and sequential tests.</p>
+  <div class="tablewrap">
+    <table>
+      <caption><strong>Table 3.</strong> The pretraining and fine-tuning experiment.</caption>
+      <thead><tr><th scope="col">Element</th><th scope="col">Specification</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Pretraining</th><td>One policy on the demonstrations and DAgger rounds of the seven pretraining behaviors</td></tr>
+        <tr><th scope="row">Fine-tuning</th><td>On each held-out task, with 2, 5, 10, 25, 50 and 100% of its data, each smaller share contained in the larger ones. A learning rate of 2e-5 and 10,000 steps, as TRI used for simulated tasks<a class="cite" href="#ref-tri">[1]</a>; pretraining state statistics and action scale are retained</td></tr>
+        <tr><th scope="row">Baselines</th><td>The same model trained on that task alone from scratch, at each data fraction; the classical controller</td></tr>
+        <tr><th scope="row">Ablations</th><td>Pretraining data (25, 50, 100%); diversity (number of behaviors); elevation map alone against map with images</td></tr>
+        <tr><th scope="row">Conditions</th><td>Nominal, clay, a held-out site; subsequently the ZX120</td></tr>
+        <tr><th scope="row">Metrics</th><td>Success rate, cycle time, payload per pass, grade error, spillage, intervention rate, valve reversals, and constraint violations (over-digging, truck contact, low tip-over margin)</td></tr>
+        <tr><th scope="row">Statistics</th><td>200 rollouts per task, policy and condition from identical initial states. Beta posteriors; Lai's sequential test on paired outcomes with compact letter displays, following TRI<a class="cite" href="#ref-tri">[1]</a>; McNemar's test; Welch's test for continuous metrics</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="first">
+  <h2>7. Single-task baseline: truck loading</h2>
+  <p>The classical controller completes truck loading in 94% of nominal and 84% of randomized episodes on Isaac Lab. A sequence of policies cloned from it has been evaluated, using a smaller configuration than the full model: approximately 3M parameters, a learned instruction embedding and the elevation map as the only view of the site. The most recent completes the task in 72% of nominal and 59% of randomized episodes and serves as the single-task baseline against which pretrained policies are compared.</p>
+  <figure>
+    <div class="panel">
+      <p class="legend"><span><i class="swatch" style="background:var(--machine)"></i>Nominal physics</span><span><i class="swatch" style="background:var(--truck)"></i>Randomized physics</span></p>
+      <div class="scroll"><svg class="chart" viewBox="0 0 780 494" role="img" aria-label="Soil delivered per episode: approximately 2.8 cubic meters for the classical controller and 0.1 to 1.1 for the policies, highest with joint targets."><line x1="268.0" x2="268.0" y1="28" y2="470" class="grid"/><text x="268.0" y="486" class="tick" text-anchor="middle">0 m³</text><line x1="398.3" x2="398.3" y1="28" y2="470" class="grid"/><text x="398.3" y="486" class="tick" text-anchor="middle">1 m³</text><line x1="528.6" x2="528.6" y1="28" y2="470" class="grid"/><text x="528.6" y="486" class="tick" text-anchor="middle">2 m³</text><line x1="658.9" x2="658.9" y1="28" y2="470" class="grid"/><text x="658.9" y="486" class="tick" text-anchor="middle">3 m³</text><text x="256" y="57" class="label" text-anchor="end">Classical controller</text><g class="mark" tabindex="0" data-tip="2.77 m³ delivered, 94% success|Classical controller, nominal (median of 32 episodes)"><rect x="268" y="34" width="456" height="18" fill="transparent"/><path d="M268.0 34.0h357.4q4 0 4 4v10.0q0 4 -4 4h-357.4z" fill="#c2570c"/></g><text x="635.4" y="47" class="value">2.77</text><g class="mark" tabindex="0" data-tip="2.95 m³ delivered, 84% success|Classical controller, randomized (median of 32 episodes)"><rect x="268" y="54" width="456" height="18" fill="transparent"/><path d="M268.0 54.0h380.3q4 0 4 4v10.0q0 4 -4 4h-380.3z" fill="#00897b"/></g><text x="658.3" y="67" class="value">2.95</text><text x="256" y="111" class="label" text-anchor="end">Policy</text><text x="256" y="128" class="sub" text-anchor="end">initial demonstrations, stick commands</text><g class="mark" tabindex="0" data-tip="0.13 m³ delivered, 0% success|Policy: initial demonstrations, stick commands, nominal (median of 32 episodes)"><rect x="268" y="96" width="456" height="18" fill="transparent"/><path d="M268.0 96.0h13.2q4 0 4 4v10.0q0 4 -4 4h-13.2z" fill="#c2570c"/></g><text x="291.2" y="109" class="value">0.13</text><g class="mark" tabindex="0" data-tip="0.12 m³ delivered, 0% success|Policy: initial demonstrations, stick commands, randomized (median of 32 episodes)"><rect x="268" y="116" width="456" height="18" fill="transparent"/><path d="M268.0 116.0h12.1q4 0 4 4v10.0q0 4 -4 4h-12.1z" fill="#00897b"/></g><text x="290.1" y="129" class="value">0.12</text><text x="256" y="173" class="label" text-anchor="end">Policy</text><text x="256" y="190" class="sub" text-anchor="end">consistent demonstrations, stick commands</text><g class="mark" tabindex="0" data-tip="0.17 m³ delivered, 0% success|Policy: consistent demonstrations, stick commands, nominal (median of 32 episodes)"><rect x="268" y="158" width="456" height="18" fill="transparent"/><path d="M268.0 158.0h17.8q4 0 4 4v10.0q0 4 -4 4h-17.8z" fill="#c2570c"/></g><text x="295.8" y="171" class="value">0.17</text><g class="mark" tabindex="0" data-tip="0.53 m³ delivered, 0% success|Policy: consistent demonstrations, stick commands, randomized (median of 32 episodes)"><rect x="268" y="178" width="456" height="18" fill="transparent"/><path d="M268.0 178.0h65.5q4 0 4 4v10.0q0 4 -4 4h-65.5z" fill="#00897b"/></g><text x="343.5" y="191" class="value">0.53</text><text x="256" y="235" class="label" text-anchor="end">Policy</text><text x="256" y="252" class="sub" text-anchor="end">consistent demonstrations, joint targets</text><g class="mark" tabindex="0" data-tip="1.00 m³ delivered, 0% success|Policy: consistent demonstrations, joint targets, nominal (median of 32 episodes)"><rect x="268" y="220" width="456" height="18" fill="transparent"/><path d="M268.0 220.0h126.5q4 0 4 4v10.0q0 4 -4 4h-126.5z" fill="#c2570c"/></g><text x="404.5" y="233" class="value">1.00</text><g class="mark" tabindex="0" data-tip="1.14 m³ delivered, 6% success|Policy: consistent demonstrations, joint targets, randomized (median of 32 episodes)"><rect x="268" y="240" width="456" height="18" fill="transparent"/><path d="M268.0 240.0h144.0q4 0 4 4v10.0q0 4 -4 4h-144.0z" fill="#00897b"/></g><text x="422.0" y="253" class="value">1.14</text><text x="256" y="297" class="label" text-anchor="end">Policy</text><text x="256" y="314" class="sub" text-anchor="end">keypoints, map fixed to the tracks</text><g class="mark" tabindex="0" data-tip="2.18 m³ delivered, 16% success|Policy: keypoints, map fixed to the tracks, nominal (median of 32 episodes)"><rect x="268" y="282" width="456" height="18" fill="transparent"/><path d="M268.0 282.0h279.5q4 0 4 4v10.0q0 4 -4 4h-279.5z" fill="#c2570c"/></g><text x="557.5" y="295" class="value">2.18</text><g class="mark" tabindex="0" data-tip="1.76 m³ delivered, 16% success|Policy: keypoints, map fixed to the tracks, randomized (median of 32 episodes)"><rect x="268" y="302" width="456" height="18" fill="transparent"/><path d="M268.0 302.0h225.6q4 0 4 4v10.0q0 4 -4 4h-225.6z" fill="#00897b"/></g><text x="503.6" y="315" class="value">1.76</text><text x="256" y="359" class="label" text-anchor="end">Policy</text><text x="256" y="376" class="sub" text-anchor="end">keypoints, map in the cab&#x27;s frame</text><g class="mark" tabindex="0" data-tip="2.40 m³ delivered, 50% success|Policy: keypoints, map in the cab&#x27;s frame, nominal (median of 32 episodes)"><rect x="268" y="344" width="456" height="18" fill="transparent"/><path d="M268.0 344.0h308.9q4 0 4 4v10.0q0 4 -4 4h-308.9z" fill="#c2570c"/></g><text x="586.9" y="357" class="value">2.40</text><g class="mark" tabindex="0" data-tip="2.44 m³ delivered, 50% success|Policy: keypoints, map in the cab&#x27;s frame, randomized (median of 32 episodes)"><rect x="268" y="364" width="456" height="18" fill="transparent"/><path d="M268.0 364.0h313.8q4 0 4 4v10.0q0 4 -4 4h-313.8z" fill="#00897b"/></g><text x="591.8" y="377" class="value">2.44</text><text x="256" y="421" class="label" text-anchor="end">Policy</text><text x="256" y="438" class="sub" text-anchor="end">cab&#x27;s frame, more demonstrations, DAgger</text><g class="mark" tabindex="0" data-tip="2.78 m³ delivered, 72% success|Policy: cab&#x27;s frame, more demonstrations, DAgger, nominal (median of 32 episodes)"><rect x="268" y="406" width="456" height="18" fill="transparent"/><path d="M268.0 406.0h358.5q4 0 4 4v10.0q0 4 -4 4h-358.5z" fill="#c2570c"/></g><text x="636.5" y="419" class="value">2.78</text><g class="mark" tabindex="0" data-tip="2.74 m³ delivered, 59% success|Policy: cab&#x27;s frame, more demonstrations, DAgger, randomized (median of 32 episodes)"><rect x="268" y="426" width="456" height="18" fill="transparent"/><path d="M268.0 426.0h352.9q4 0 4 4v10.0q0 4 -4 4h-352.9z" fill="#00897b"/></g><text x="630.9" y="439" class="value">2.74</text><line x1="268" x2="268" y1="28" y2="470" class="axis"/></svg></div>
+    </div>
+    <figcaption><strong>Figure 9.</strong> Soil delivered to the truck per episode: median of 32 episodes per condition, with identical seeds across methods. Both conditions vary the site, the initial state and the target (2.4–3.6 m³, less any preload); the randomized condition also samples soil and machine parameters.</figcaption>
+  </figure>
+  <div class="tablewrap numeric">
+    <table>
+      <caption><strong>Table 4.</strong> Closed-loop results on Isaac Lab, 32 episodes per condition (medians, except success rate).</caption>
+      <thead>
+        <tr><th scope="col" rowspan="2">Method</th><th scope="colgroup" colspan="2">Success rate</th><th scope="colgroup" colspan="2">Delivered (m³)</th><th scope="colgroup" colspan="2">Payload per pass (m³)</th><th scope="colgroup" colspan="2">Cycle time (s)</th></tr>
+        <tr><th scope="col">Nom.</th><th scope="col">Rand.</th><th scope="col">Nom.</th><th scope="col">Rand.</th><th scope="col">Nom.</th><th scope="col">Rand.</th><th scope="col">Nom.</th><th scope="col">Rand.</th></tr>
+      </thead>
+      <tbody><tr><th scope="row">Classical controller</th><td><strong>94%</strong></td><td><strong>84%</strong></td><td><strong>2.77</strong></td><td><strong>2.95</strong></td><td>0.47</td><td>0.43</td><td>14.3</td><td>15.0</td></tr><tr><th scope="row">Policy: initial demonstrations, stick commands</th><td>0%</td><td>0%</td><td>0.13</td><td>0.12</td><td>0.22</td><td>0.18</td><td>14.6</td><td>22.4</td></tr><tr><th scope="row">Policy: consistent demonstrations, stick commands</th><td>0%</td><td>0%</td><td>0.17</td><td>0.53</td><td>0.23</td><td>0.25</td><td>27.5</td><td>31.2</td></tr><tr><th scope="row">Policy: consistent demonstrations, joint targets</th><td>0%</td><td>6%</td><td>1.00</td><td>1.14</td><td>0.29</td><td>0.30</td><td>21.7</td><td>25.2</td></tr><tr><th scope="row">Policy: keypoints, map fixed to the tracks</th><td>16%</td><td>16%</td><td>2.18</td><td>1.76</td><td>0.33</td><td>0.27</td><td>16.8</td><td>18.5</td></tr><tr><th scope="row">Policy: keypoints, map in the cab&#x27;s frame</th><td>50%</td><td>50%</td><td>2.40</td><td>2.44</td><td>0.39</td><td>0.37</td><td>16.2</td><td>17.3</td></tr><tr><th scope="row">Policy: cab&#x27;s frame, more demonstrations, DAgger</th><td><strong>72%</strong></td><td><strong>59%</strong></td><td><strong>2.78</strong></td><td><strong>2.74</strong></td><td>0.37</td><td>0.40</td><td>16.7</td><td>16.5</td></tr></tbody>
+    </table>
+  </div>
+  <p>The best policy matches the controller's median delivery in nominal conditions and comes close in randomized ones, but it is less reliable: 22 of 64 episodes fail, most by running out of time. Its cycles are slower, and median spillage is 0.8 m³ per episode, against 0.2–0.5 m³ for the controller. A second evaluation on the same seeds, recorded for analysis, succeeded in 78% of nominal and 69% of randomized episodes, which gives a sense of the spread between runs. In it, 95–96% of emptyings put soil in the truck, against 98–99% for the controller, and 72–73% of the soil lifted reached the truck, against 76–86%. At this sample size the difference in success from the controller on matching seeds falls short of significance (McNemar p = 0.065 nominal, 0.057 randomized); the pretraining experiment uses larger samples.</p>
+  <!--video3--><figure>
+    <div class="pair">
+      <video controls muted playsinline preload="metadata" poster="media/clips/policy_load_truck.jpg" width="854" height="480" aria-label="The learned policy digging from the stockpile and loading the truck, viewed from outside"><source src="media/clips/policy_load_truck.mp4" type="video/mp4"></video>
+      <video controls muted playsinline preload="metadata" poster="media/clips/policy_load_truck_cab.jpg" width="854" height="480" aria-label="The same episode viewed from a camera on the cab"><source src="media/clips/policy_load_truck_cab.mp4" type="video/mp4"></video>
+    </div>
+    <figcaption><strong>Video 3.</strong> One successful episode of the best policy on a randomized scenario (loam, a 3.1 m³ target, reached in 68 s), viewed from outside and from the cab at 3× speed, rendered with RTX by state replay. Across the two evaluations, 31–41% of randomized episodes do not reach the target. The heap beside the truck is spilled soil.</figcaption>
+  </figure><!--/video3-->
+  <figure>
+    <div class="panel"><img src="media/behavior.png" width="1430" height="1144" alt="Plots of swing angle, bucket contents and truck payload against time on four seeds, for the classical controller and the best policy."></div>
+    <figcaption><strong>Figure 10.</strong> The best policy (orange) and the classical controller (blue) on four nominal seeds: swing angle, bucket contents and truck payload over time. Both reach the target on all four, the policy in somewhat more time.</figcaption>
+  </figure>
+</section>
+
+<section id="lessons">
+  <h2>8. Findings</h2>
+  <h3>Measuring prediction quality</h3>
+  <p>Several comparisons below use open-loop R², which scores a policy without running the simulator. On held-out demonstrations the policy predicts the actions it would execute next, and R² is the fraction of the variance in the demonstrator's actions that those predictions explain, averaged over the swing, boom, arm and bucket. A value of 1 means perfect prediction, and 0 means no better than always predicting the mean action. It measures how well the policy imitates in the states the demonstrator visited, not whether the policy succeeds when it drives, and it ranked encoders differently from closed-loop results (Table 6).</p>
+  <h3>Action representation</h3>
+  <p>Stick commands correspond to valve openings and therefore act as velocity commands. On held-out demonstrations they reached R² = 0.47, whereas chunks of joint targets, expressed relative to the pose observed at prediction time and tracked by the controller's servo, reached R² = 0.69. This is consistent with the finding in Diffusion Policy that position actions outperform velocity actions when predicting action sequences<a class="cite" href="#ref-diffusion">[2]</a>. Median delivered soil increased from 0.2–0.5 m³ to 1.0–1.1 m³.</p>
+  <h3>Demonstrator consistency</h3>
+  <p>Removing the controller's hidden per-episode settings was expected to be the principal improvement. It left the R² of stick commands essentially unchanged (0.46 to 0.47), although the controller's own success rate improved. The effect of consistency on joint-target policies was not isolated and remains unknown. With the initial demonstrations, additional data yielded diminishing returns: R² of 0.25, 0.41 and 0.43 at 16, 32 and 69 demonstrations.</p>
+  <h3>Model capacity</h3>
+  <p>With 171 demonstrations, a 17M-parameter model reached R² = 0.70, against 0.69 for the 3M-parameter model, and overfit earlier. Model size is therefore not the current limitation.</p>
+  <h3>Generalization of the elevation-map encoder</h3>
+  <p>The elevation map is the policy's view of the site, and the map encoder is the network that reduces it to the vector conditioning the transformer. The original encoder applies four stride-2 convolutions, which reduce the 64 × 64 map, 19.2 m across, to a 4 × 4 grid of feature vectors, each covering 4.8 m. A linear layer then reads the flattened grid. This keeps track of where terrain lies relative to the machine, but it has a weakness: the linear layer holds separate weights for each cell of the grid. What it learns about a truck in one cell does not transfer to another, and nothing in its structure relates nearby truck positions to each other. Given few distinct truck poses, it can memorize them rather than compute a position from the features.</p>
+  <p>Consistent with this, a supervised test rules out the first explanation for the policy's dump misses, that a 4.8 m grid is too coarse to locate the truck. When regressing the vessel center from a single map, the grid encoder attains an error of 0.03 m on truck poses seen in training, far finer than its grid, and 1.06 m (6.8°) on held-out poses, comparable to the policy's closed-loop swing error at the truck. The limit is generalization, not resolution. Each demonstration contains a single truck pose, so 171 demonstrations provide 171 poses regardless of the number of frames.</p>
+  <p>Keypoints replace that structure. Each of K output channels becomes a probability distribution over the map, and its expected position gives one pair of continuous coordinates. When the truck moves somewhere new, the coordinates move with it, so position is computed rather than looked up. A global average of the final convolution's features then says what is on the map without saying where.</p>
+  <figure>
+    <div class="panel">
+      <p class="legend"><span><i class="dot" style="background:#fff"></i>Map as recorded</span><span><i class="dot" style="background:var(--muted)"></i>Site rotated at random about the swing axis</span></p>
+      <div class="scroll"><svg class="chart" viewBox="0 0 780 274" role="img" aria-label="Held-out bearing error for four encoders, each without and with random rotation of the site. Errors below one degree require keypoints without the grid, with rotation."><g><line x1="212.0" x2="212.0" y1="20" y2="248" class="grid"/><text x="212.0" y="264" class="tick" text-anchor="middle">0°</text><line x1="344.0" x2="344.0" y1="20" y2="248" class="grid"/><text x="344.0" y="264" class="tick" text-anchor="middle">2°</text><line x1="476.0" x2="476.0" y1="20" y2="248" class="grid"/><text x="476.0" y="264" class="tick" text-anchor="middle">4°</text><line x1="608.0" x2="608.0" y1="20" y2="248" class="grid"/><text x="608.0" y="264" class="tick" text-anchor="middle">6°</text><line x1="740.0" x2="740.0" y1="20" y2="248" class="grid"/><text x="740.0" y="264" class="tick" text-anchor="middle">8°</text><text x="198" y="48" class="label" text-anchor="end">Grid + linear layer</text><line x1="664.1" x2="430.8" y1="44" y2="44" stroke="#6a736e" stroke-width="2" stroke-linecap="round"/><g class="mark" tabindex="0" data-tip="6.8° bearing, 1.06 m position|Grid + linear layer, map as recorded (seeds: 6.6°, 7.1°)"><circle cx="664.1" cy="44" r="14" fill="transparent"/><circle cx="664.1" cy="44" r="6" fill="#ffffff" stroke="#6a736e" stroke-width="2"/></g><g class="mark" tabindex="0" data-tip="3.3° bearing, 0.52 m position|Grid + linear layer, site rotated at random (seeds: 3.7°, 2.9°)"><circle cx="430.8" cy="44" r="14" fill="transparent"/><circle cx="430.8" cy="44" r="6" fill="#6a736e" stroke="#6a736e" stroke-width="2"/></g><text x="675.1" y="48" class="value">6.8°</text><text x="419.8" y="48" class="value" text-anchor="end">3.3°</text><text x="198" y="102" class="label" text-anchor="end">Grid + keypoints</text><line x1="591.8" x2="355.5" y1="98" y2="98" stroke="#6a736e" stroke-width="2" stroke-linecap="round"/><g class="mark" tabindex="0" data-tip="5.8° bearing, 1.05 m position|Grid + keypoints, map as recorded (seeds: 5.8°, 5.7°)"><circle cx="591.8" cy="98" r="14" fill="transparent"/><circle cx="591.8" cy="98" r="6" fill="#ffffff" stroke="#6a736e" stroke-width="2"/></g><g class="mark" tabindex="0" data-tip="2.2° bearing, 0.33 m position|Grid + keypoints, site rotated at random (seeds: 2.6°, 1.7°)"><circle cx="355.5" cy="98" r="14" fill="transparent"/><circle cx="355.5" cy="98" r="6" fill="#6a736e" stroke="#6a736e" stroke-width="2"/></g><text x="602.8" y="102" class="value">5.8°</text><text x="344.5" y="102" class="value" text-anchor="end">2.2°</text><text x="198" y="156" class="label" text-anchor="end">Keypoints only</text><line x1="486.6" x2="265.1" y1="152" y2="152" stroke="#6a736e" stroke-width="2" stroke-linecap="round"/><g class="mark" tabindex="0" data-tip="4.2° bearing, 0.64 m position|Keypoints only, map as recorded (seeds: 5.2°, 3.1°)"><circle cx="486.6" cy="152" r="14" fill="transparent"/><circle cx="486.6" cy="152" r="6" fill="#ffffff" stroke="#6a736e" stroke-width="2"/></g><g class="mark" tabindex="0" data-tip="0.8° bearing, 0.12 m position|Keypoints only, site rotated at random (seeds: 1.1°, 0.6°)"><circle cx="265.1" cy="152" r="14" fill="transparent"/><circle cx="265.1" cy="152" r="6" fill="#6a736e" stroke="#6a736e" stroke-width="2"/></g><text x="497.6" y="156" class="value">4.2°</text><text x="254.1" y="156" class="value" text-anchor="end">0.8°</text><text x="198" y="210" class="label" text-anchor="end" font-weight="600">Keypoints + global average</text><line x1="494.5" x2="261.8" y1="206" y2="206" stroke="#c2570c" stroke-width="2" stroke-linecap="round"/><g class="mark" tabindex="0" data-tip="4.3° bearing, 0.69 m position|Keypoints + global average, map as recorded (seeds: 4.2°, 4.4°)"><circle cx="494.5" cy="206" r="14" fill="transparent"/><circle cx="494.5" cy="206" r="6" fill="#ffffff" stroke="#c2570c" stroke-width="2"/></g><g class="mark" tabindex="0" data-tip="0.8° bearing, 0.12 m position|Keypoints + global average, site rotated at random (seeds: 0.8°, 0.7°)"><circle cx="261.8" cy="206" r="14" fill="transparent"/><circle cx="261.8" cy="206" r="6" fill="#c2570c" stroke="#c2570c" stroke-width="2"/></g><text x="505.5" y="210" class="value">4.3°</text><text x="250.8" y="210" class="value" text-anchor="end">0.8°</text></g></svg></div>
+    </div>
+    <figcaption><strong>Figure 11.</strong> Bearing error on 13 held-out truck poses after training on 72 poses: mean of two training seeds, each the median over maps. Random rotations extend to ±180°. Keypoints are soft-argmax coordinates<a class="cite" href="#ref-softmax">[8]</a>, as in the image encoder of Diffusion Policy<a class="cite" href="#ref-diffusion">[2]</a>. Rotation alone halves the error of the grid encoder; errors below 1° are obtained only by replacing the grid's linear layer with keypoints and applying rotation.</figcaption>
+  </figure>
+  <div class="tablewrap numeric">
+    <table>
+      <caption><strong>Table 5.</strong> Median localization error of the vessel center (position, bearing), mean of two training seeds.</caption>
+      <thead><tr><th scope="col">Encoder</th><th scope="col">Held-out poses, as recorded</th><th scope="col">Held-out poses, rotated</th><th scope="col">Training poses, as recorded</th></tr></thead>
+      <tbody><tr><th scope="row">Grid + linear layer</th><td>1.06 m, 6.8°</td><td>0.52 m, 3.3°</td><td>0.03 m, 0.2°</td></tr><tr><th scope="row">Grid + keypoints</th><td>1.05 m, 5.8°</td><td>0.33 m, 2.2°</td><td>0.03 m, 0.2°</td></tr><tr><th scope="row">Keypoints only</th><td>0.64 m, 4.2°</td><td>0.12 m, 0.8°</td><td>0.04 m, 0.2°</td></tr><tr><th scope="row">Keypoints + global average</th><td>0.69 m, 4.3°</td><td>0.12 m, 0.8°</td><td>0.03 m, 0.2°</td></tr></tbody>
+    </table>
+  </div>
+  <p>Rotation about the swing axis is a physical symmetry of the machine: the upper structure rotates on the undercarriage, so adding the same angle to the swing angle leaves joint targets relative to the observed pose unchanged. Scene diversity of this kind is one reason to expect pretraining to help, since an encoder shared across behaviors and sites observes many more scenes than the demonstrations of one task. The pretraining experiment tests this.</p>
+  <h3>From localization to driving</h3>
+  <p>The test above addresses truck localization only. On the full policy, driving in closed loop on the same demonstrations and seeds, its ranking did not hold (Table 6). Keypoints without rotation increased delivery over the grid. Rotation up to ±1 rad helped the grid but not keypoints. Keypoints with rotation up to ±180°, the best encoder for localization and the best by validation loss, was the worst in closed loop: 55 of 64 episodes ended stuck. In traces of it, a machine that starts far from the pile does not swing back and repeats digging motions in the air. A likely reason is that every pile lies within ±60° of the machine's forward direction, so a policy trained without rotation can steer by the swing angle alone, while rotation removes that cue and leaves a relation that the policy must infer from the map. Validation loss and R² are computed near the demonstrations and do not reveal this.</p>
+  <div class="tablewrap numeric">
+    <table>
+      <caption><strong>Table 6.</strong> Encoders on the full policy: the same 171 training demonstrations and 20,000 steps, 32 closed-loop episodes per condition on identical seeds (medians, except success rate), nominal / randomized. All but the first row average the weights (EMA).</caption>
+      <thead><tr><th scope="col">Encoder</th><th scope="col">Success rate</th><th scope="col">Delivered (m³)</th><th scope="col">Spilled (m³)</th><th scope="col">Validation loss</th><th scope="col">Held-out R²</th></tr></thead>
+      <tbody><tr><th scope="row">Grid, weights not averaged</th><td>0% / 6%</td><td>1.00 / 1.14</td><td>1.28 / 1.51</td><td>0.168</td><td>0.69</td></tr><tr><th scope="row">Grid</th><td>6% / 6%</td><td>1.59 / 1.32</td><td>1.60 / 1.70</td><td>0.152</td><td>0.68</td></tr><tr><th scope="row">Grid, rotation up to ±1 rad</th><td>12% / 12%</td><td>2.01 / 1.88</td><td>1.31 / 1.27</td><td>0.122</td><td>0.73</td></tr><tr><th scope="row">Keypoints</th><td>16% / 16%</td><td>2.18 / 1.76</td><td>1.56 / 1.63</td><td>0.138</td><td>0.70</td></tr><tr><th scope="row">Keypoints, rotation up to ±1 rad</th><td>12% / 25%</td><td>1.75 / 1.98</td><td>1.71 / 1.39</td><td>0.118</td><td>0.73</td></tr><tr><th scope="row">Keypoints, rotation up to ±180°</th><td>0% / 0%</td><td>0.00 / 0.00</td><td>0.40 / 0.22</td><td>0.118</td><td>0.72</td></tr><tr><th scope="row">Keypoints, cab frame</th><td><strong>50% / 50%</strong></td><td>2.40 / 2.44</td><td>1.05 / 0.78</td><td>0.119</td><td>0.74</td></tr></tbody>
+    </table>
+  </div>
+  <h3>Where the soil goes</h3>
+  <p>Traces of the best policy with the map fixed to the tracks place the remaining gap at the dump. It held 0.61 m³ per pass, close to the controller's 0.65 m³, and neither lost a meaningful amount in transit, but 25% of its emptyings missed the truck, against 1% for the controller, and 52% of the soil it lifted reached the truck, against 86%. The misses fall beyond the ends of the vessel. The truck stands roughly across the arc of the swing, so these are errors in swing angle: the bucket opens too early or too late.</p>
+  <h3>The map in the cab's frame</h3>
+  <p>In the map as the simulator provides it, fixed to the tracks, the boom does not appear: its direction reaches the policy only as a swing angle among the state values. Whether the bucket is over the truck is then a relation between that number and the truck's position on the map, which must be learned across every position the truck can occupy. Turning the map by minus the swing angle before the encoder puts the boom along the map's forward axis, as a camera on the cab sees the site. A truck straight ahead of the boom then looks the same wherever it is parked (Figure 12), and as the boom swings the truck slides toward the center line, which directly shows how far is left to go. Unlike rotation augmentation, this builds the symmetry into the input and presents no artificial scenes. The swing angle stays in the state for whatever does depend on the tracks. The transform is one processing step, applied alike in training and when driving, and needs nothing recorded differently.</p>
+  <figure>
+    <div class="panel"><img src="media/cab_frame.png" width="1280" height="1260" style="max-width:640px;display:block;margin:0 auto" alt="Elevation maps from two demonstrations as a dump begins, with the truck on the machine's right and on its left. Fixed to the tracks the two look different. In the cab's frame the truck lies straight ahead of the boom in both."></div>
+    <figcaption><strong>Figure 12.</strong> Two recorded demonstrations as the bucket begins to empty, with the truck on opposite sides of the machine. Fixed to the tracks (left), the same decision looks different in each. In the cab's frame (right), the truck lies straight ahead of the boom (orange) in both.</figcaption>
+  </figure>
+  <p>With the frame the only change, on the same demonstrations and seeds, success rose from 16% to 50% nominal and from 16% to 50% randomized. On matching seeds the cab frame alone succeeded 14 times and the tracks' frame alone 3 times in nominal conditions (McNemar p = 0.013), and 12 and 1 times in randomized conditions (p = 0.003). With 32 episodes per condition, each rate is uncertain by about 17 percentage points. Adding 359 further demonstrations and one DAgger round of 100 labeled episodes then brought success to 72% and 59% (Table 4), with median delivery close to the controller's and 95–96% of emptyings reaching the truck, against the 75% above. These two additions were made together, so their separate effects are not known.</p>
+</section>
+
+<section id="roadmap">
+  <h2>9. Roadmap</h2>
+  <ul class="milestones">
+    <li><span class="m">M1</span><p><strong>Simulator and classical behaviors.</strong> The simulator; a closed-loop controller for each behavior: digging, swinging, dumping to a truck or a pile, trenching, finish grading, travel, recovery and truck loading; the data pipeline; and the single-task baseline with its evaluation.</p></li>
+    <li class="now"><span class="m">M2</span><p><strong>Multi-task pretraining.</strong> Demonstrations and DAgger rounds on the pretraining behaviors, followed by pretraining, fine-tuning on held-out tasks and the comparison with single-task training.</p><span class="pill done">Current stage</span></li>
+    <li><span class="m">M3</span><p><strong>Beyond behavior cloning.</strong> KL-anchored reinforcement learning and reinforcement learning in the diffusion noise space on the weakest fine-tuned task, with DAgger as the baseline.</p></li>
+    <li><span class="m">M4</span><p><strong>Reality simulator and gap attribution.</strong> Particle soil, hydraulic wear, sensor noise, latency and photorealistic rendering, each enabled individually.</p></li>
+    <li><span class="m">M5</span><p><strong>Reasoning and supervision.</strong> A reasoning model that translates work orders into skills, and monitors that trigger fallback behaviors.</p></li>
+    <li><span class="m">M6</span><p><strong>Real-time deployment.</strong> Inference export, a C++ control loop, a watchdog and operating modes.</p></li>
+  </ul>
+  <figure>
+    <div class="pair">
+      <div>
+        <h3 style="margin-top:0">Limitations</h3>
+        <ul>
+          <li>All results are from simulation. No experiments have been conducted on a physical machine.</li>
+                    <li>Soil is modeled as a heightfield with volume bookkeeping rather than as simulated material. In renders, soil can appear at the base of the bucket at first contact.</li>
+          <li>Clay is held out, and the controller's clay dumps miss the truck. The crawler's yaw drifts under repeated swinging, by a median of 4–8° per minute in the longer behaviors and by up to 26° in a single 2.4-minute trench episode. This has not been compared with a physical machine.</li>
+          <li>The elevation map is read from the simulator's surfaces with added sensor noise, not produced by a simulated LiDAR, so it has no occlusion and needs no filtering of the boom and bucket. A real map will have both problems.</li>
+          <li>Results above use 32 episodes per condition, or recorded rollouts where stated. The pretraining experiment uses 200.</li>
+          <li>The scale is far below that of TRI's study, whose effects were measured with approximately 1,700 hours of data and more than 500 tasks.</li>
+        </ul>
+      </div>
+      <div>
+        <img src="media/mpm_fill.png" width="640" height="360" alt="The excavator bucket lifting a test box of particle soil.">
+        <figcaption><strong>Figure 13.</strong> The reality simulator's particle soil. The same shallow dig carried approximately 8× less soil than in the initial training soil model, which motivated adding floor and heel resistance to the bucket in the training world.</figcaption>
+      </div>
+    </div>
+  </figure>
+</section>
+
+<section id="references">
+  <h2>References</h2>
+  <h3>Large Behavior Models and multi-task policies</h3><ol class="refs"><li id="ref-tri" value="1"><a href="https://arxiv.org/abs/2507.05331">A Careful Examination of Large Behavior Models for Multitask Dexterous Manipulation</a>. TRI LBM Team (Barreiros et al.). Science Robotics 11(113), 2026; arXiv:2507.05331.<span class="used">Methodological basis. Fine-tuned LBMs outperform single-task training on the same data or match it with 3–5× less; performance increases with pretraining data; sequential tests on paired trials. Figures cited here are from the arXiv version.</span></li><li id="ref-diffusion" value="2"><a href="https://arxiv.org/abs/2303.04137">Diffusion Policy: Visuomotor Policy Learning via Action Diffusion</a>. Chi et al. RSS 2023; IJRR 44(10-11), 2025.<span class="used">Reports that position-control actions consistently outperform velocity control, and that velocity control is more affected by latency. Its image encoder uses a spatial softmax.</span></li><li id="ref-act" value="3"><a href="https://arxiv.org/abs/2304.13705">Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware</a>. Zhao, Kumar, Levine, Finn. RSS 2023.<span class="used">Action chunking with transformers, addressing compounding errors.</span></li><li id="ref-robomimic" value="4"><a href="https://arxiv.org/abs/2108.03298">What Matters in Learning from Offline Human Demonstrations for Robot Manipulation</a>. Mandlekar et al. CoRL 2021.<span class="used">Shows that results depend on algorithm design, demonstration quality and the stopping criterion.</span></li><li id="ref-flow" value="5"><a href="https://arxiv.org/abs/2210.02747">Flow Matching for Generative Modeling</a>. Lipman et al. ICLR 2023.<span class="used">The training objective of the policy.</span></li><li id="ref-dit" value="6"><a href="https://arxiv.org/abs/2212.09748">Scalable Diffusion Models with Transformers</a>. Peebles, Xie. ICCV 2023.<span class="used">The transformer denoiser on which the policy architecture is based.</span></li><li id="ref-clip" value="7"><a href="https://arxiv.org/abs/2103.00020">Learning Transferable Visual Models From Natural Language Supervision</a>. Radford et al. ICML 2021.<span class="used">The image and text encoders of the policy.</span></li><li id="ref-softmax" value="8"><a href="https://jmlr.org/papers/v17/15-522.html">End-to-End Training of Deep Visuomotor Policies</a>. Levine, Finn, Darrell, Abbeel. JMLR 17, 2016.<span class="used">The spatial softmax and expected-position layer used in the keypoint encoder.</span></li><li id="ref-pi0" value="9"><a href="https://arxiv.org/abs/2410.24164">π0: A Vision-Language-Action Flow Model for General Robot Control</a>. Black et al. RSS 2025.<span class="used">A flow-matching policy pretrained across robot platforms; related work.</span></li><li id="ref-smolvla" value="10"><a href="https://arxiv.org/abs/2506.01844">SmolVLA: A Vision-Language-Action Model for Affordable and Efficient Robotics</a>. Shukor et al. arXiv:2506.01844, 2025.<span class="used">Candidate for an optional comparison of generic with domain-specific pretraining.</span></li></ol><h3>Imitation and closed-loop learning</h3><ol class="refs"><li id="ref-dagger" value="11"><a href="https://arxiv.org/abs/1011.0686">A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning</a>. Ross, Gordon, Bagnell. AISTATS 2011.<span class="used">DAgger: data are collected under the current policy and the next policy is trained on the aggregate. The expert mixture must decay; their best Super Mario Bros. result retained a decaying share, which they suggest reduces data from stalled states.</span></li><li id="ref-dart" value="12"><a href="https://arxiv.org/abs/1703.09327">DART: Noise Injection for Robust Imitation Learning</a>. Laskey et al. CoRL 2017.<span class="used">Noise injection during demonstration, so that the supervisor demonstrates recovery.</span></li><li id="ref-hgdagger" value="13"><a href="https://arxiv.org/abs/1810.02890">HG-DAgger: Interactive Imitation Learning with Human Experts</a>. Kelly, Sidrane, Driggs-Campbell, Kochenderfer. ICRA 2019.<span class="used">Expert-gated takeover; the basis of the simulated supervisor.</span></li><li id="ref-beyondbc" value="14"><a href="https://d1qx31qr3h6wln.cloudfront.net/publications/beyond_bc_survey_preprint.pdf">Beyond Behavior Cloning in Autonomous Driving: a Survey of Closed-Loop Training Techniques</a>. Karkus et al. NVIDIA preprint, 2025.<span class="used">Covariate shift and compounding errors under open-loop training, and a taxonomy of closed-loop methods for driving.</span></li><li id="ref-dsrl" value="15"><a href="https://arxiv.org/abs/2506.15799">Steering Your Diffusion Policy with Latent Space Reinforcement Learning</a>. Wagenmaker et al. CoRL 2025.<span class="used">Reinforcement learning over the input noise of a diffusion policy, without changing its weights; a candidate for M3.</span></li><li id="ref-ppo" value="16"><a href="https://arxiv.org/abs/1707.06347">Proximal Policy Optimization Algorithms</a>. Schulman et al. arXiv:1707.06347, 2017.<span class="used">The reinforcement learning method underlying KL-anchored post-training.</span></li><li id="ref-grpo" value="17"><a href="https://arxiv.org/abs/2402.03300">DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models</a>. Shao et al. arXiv:2402.03300, 2024.<span class="used">Introduces GRPO, a critic-free variant of PPO, for post-training and reasoning.</span></li></ol><h3>Earthwork</h3><ol class="refs"><li id="ref-ext" value="18"><a href="https://arxiv.org/abs/2509.14992">ExT: Towards Scalable Autonomous Excavation via Large-Scale Multi-Task Pretraining and Fine-Tuning</a>. Zhai, Terenzi, Frey, Garcia Soto, Egli, Hutter. arXiv:2509.14992, 2025.<span class="used">The closest related work: one transformer pretrained on four excavation tasks and fine-tuned by supervised learning or by PPO with a KL penalty toward the pretrained policy. Zero-shot transfer to a Menzi Muck M545; fine-tuning demonstrated in simulation. No public code release was found.</span></li><li id="ref-targetdig" value="19"><a href="https://arxiv.org/abs/2609.29750">From Target Selection to Digging: A Learning-Based Framework for Continuous Autonomous Excavation</a>. Zhao et al. arXiv:2609.29750, 2026.<span class="used">Dig-target selection from LiDAR elevation maps, reinforcement learning for transport and imitation learning for digging, on a scaled excavator.</span></li><li id="ref-boulder" value="20"><a href="https://arxiv.org/abs/2509.17683">Towards Learning Boulder Excavation with Hydraulic Excavators</a>. Gruetter, Terenzi, Egli, Hutter. ICRA 2026.<span class="used">Reinforcement learning in Isaac Lab with an earth-moving force model, evaluated on a 12 t excavator.</span></li><li id="ref-exact" value="21"><a href="https://arxiv.org/abs/2405.05861">ExACT: An End-to-End Autonomous Excavator System Using Action Chunking With Transformers</a>. Chen, Jin, Wang, Zhang. ICRA 2024 workshop.<span class="used">Action chunking from LiDAR, camera and joint positions to valve commands, evaluated in simulation.</span></li><li id="ref-egli" value="22"><a href="https://doi.org/10.1109/TFR.2024.3432508">Reinforcement Learning-Based Bucket Filling for Autonomous Excavation</a>. Egli, Terenzi, Hutter. IEEE T-FR 1, 2024.<span class="used">An analytical soil model based on the fundamental earth-moving equation, with randomized soil, sufficient for sim-to-real bucket filling.</span></li><li id="ref-egli22" value="23"><a href="https://doi.org/10.1109/LRA.2022.3152865">A General Approach for the Automation of Hydraulic Excavator Arms Using Reinforcement Learning</a>. Egli, Hutter. IEEE RA-L 7(2), 2022.<span class="used">Reinforcement learning with a learned actuator model, deployed directly on a 12 t excavator.</span></li><li id="ref-jud" value="24"><a href="https://doi.org/10.1109/LRA.2017.2721551">Planning and Control for Autonomous Excavation</a>. Jud, Hottiger, Leemann, Hutter. IEEE RA-L 2(4), 2017.<span class="used">A dig defined by end-effector forces, adapting to the soil; the basis of the controller's pressure-dependent cut depth.</span></li><li id="ref-hemami" value="25"><a href="https://doi.org/10.1061/(ASCE)0893-1321(1995)8:4(175)">Fundamental Analysis of Automatic Excavation</a>. Hemami. J. Aerospace Engineering 8(4), 1995.<span class="used">Analysis of the excavation process and its control.</span></li><li id="ref-lucie" value="26"><a href="https://doi.org/10.1023/A:1007932011161">The Development, Control and Operation of an Autonomous Robotic Excavator</a>. Bradley, Seward. J. Intelligent and Robotic Systems 21(1), 1998.<span class="used">The LUCIE system: control derived from observation of machine operators, digging trenches on a tracked excavator.</span></li><li id="ref-reece" value="27"><a href="https://doi.org/10.1243/PIME_CONF_1964_179_134_02">Paper 2: The Fundamental Equation of Earth-Moving Mechanics</a>. Reece. Proc. IMechE 179(6), 1964.<span class="used">The force equation applied at the cutting edge of the bucket.</span></li><li id="ref-mckyes" value="28"><a href="https://shop.elsevier.com/books/soil-cutting-and-tillage/mckyes/978-0-444-42548-5">Soil Cutting and Tillage</a>. McKyes. Elsevier, 1985.<span class="used">Cutting-force models; the soil implementation is validated against its worked example.</span></li><li id="ref-terzaghi" value="29"><a href="https://doi.org/10.1002/9780470172766">Theoretical Soil Mechanics</a>. Terzaghi. Wiley, 1943.<span class="used">Bearing capacity, used for the resistance of the bucket floor.</span></li><li id="ref-wong" value="30"><a href="https://doi.org/10.1002/9781119719984">Theory of Ground Vehicles</a>. Wong. Wiley; 5th edition, 2022.<span class="used">Pressure-sinkage and slip relations for tracks on soil.</span></li><li id="ref-scm" value="31"><a href="https://elib.dlr.de/60535/">SCM: A Soil Contact Model for Multi-Body System Simulations</a>. Krenn, Hirzinger. ISTVS 2009.<span class="used">Soil as an elevation grid with Bekker parameters; the form of the track-soil model.</span></li><li id="ref-janosi" value="32"><a href="https://cir.nii.ac.jp/crid/1573105974802190336">The analytical determination of drawbar pull as a function of slip for tracked vehicles in deformable soils</a>. Janosi, Hanamoto. 1st Int. Conf. Mechanics of Soil-Vehicle Systems, 1961.<span class="used">The shear-displacement relation used for the tracks.</span></li><li id="ref-phoon" value="33"><a href="https://doi.org/10.1139/t99-038">Characterization of geotechnical variability</a>. Phoon, Kulhawy. Canadian Geotechnical J. 36(4), 1999.<span class="used">Inherent variability of soil properties, informing the randomization ranges.</span></li></ol><h3>Software and assets</h3><ol class="refs"><li id="ref-isaaclab" value="34"><a href="https://github.com/isaac-sim/IsaacLab">Isaac Lab: A GPU-Accelerated Simulation Framework for Multi-Modal Robot Learning</a>. Mittal et al. arXiv:2511.04831, 2025.<span class="used">The simulation framework (version 3.0, with Isaac Sim 6.2).</span></li><li id="ref-newton" value="35"><a href="https://github.com/newton-physics/newton">Newton: GPU-accelerated physics simulation for robotics and simulation research</a>. The Newton Contributors, 2025; built on Warp.<span class="used">The physics engine and a ray tracer used for the renders.</span></li><li id="ref-lerobot" value="36"><a href="https://github.com/huggingface/lerobot">LeRobot: An Open-Source Library for End-to-End Robot Learning</a>. Cadene et al. ICLR 2026; arXiv:2602.22818.<span class="used">The dataset format and the multi_task_dit policy extended by groundwork_dit.</span></li><li id="ref-rslrl" value="37"><a href="https://github.com/leggedrobotics/rsl_rl">RSL-RL: A Learning Library for Robotics Research</a>. Schwarke et al. arXiv:2509.10771, 2025.<span class="used">PPO implementation for post-training.</span></li><li id="ref-opera" value="38"><a href="https://github.com/pwri-opera">OPERA: Open Platform for Earthwork with Robotics and Autonomy</a>. Public Works Research Institute, Japan.<span class="used">Models of the ZX200, ZX120 and IC120. PWRI states that their parameters are measured or estimated, without a guarantee of accuracy; the ZX200 masses were fitted to Hitachi's specification sheet.</span></li><li id="ref-chrono" value="39"><a href="https://projectchrono.org">Project Chrono</a>. Open-source multi-physics library.<span class="used">Its SCM terrain model is the reference for the track-soil model.</span></li><li id="ref-polyhaven" value="40"><a href="https://polyhaven.com">Poly Haven</a>. CC0 assets.<span class="used">Sky panoramas and soil materials.</span></li><li id="ref-alpasim" value="41"><a href="https://github.com/NVlabs/alpasim">AlpaSim</a>. NVIDIA, 2025.<span class="used">Design reference for the evaluation harness: metrics computed from logs and a separate evaluation world. Its vehicle-specific interfaces precluded direct use.</span></li><li id="ref-alpagym" value="42"><a href="https://github.com/NVlabs/alpagym">AlpaGym</a>. NVIDIA.<span class="used">The closed-loop reinforcement learning procedure for M3.</span></li><li id="ref-cosmos" value="43"><a href="https://github.com/nvidia-cosmos/cosmos-reason2">Cosmos-Reason2</a>. NVIDIA.<span class="used">The reasoning model for M5. Its repository now directs users to Cosmos 3.</span></li></ol>
+</section>
+</main>
+</div>
+
+<div id="tip" role="status"></div>
+<script>
+(function () {
+  var tip = document.getElementById('tip');
+  function show(el, x, y) {
+    var parts = el.getAttribute('data-tip').split('|');
+    tip.textContent = '';
+    var b = document.createElement('b');
+    b.textContent = parts[0];
+    tip.appendChild(b);
+    tip.appendChild(document.createTextNode(parts[1] || ''));
+    tip.style.display = 'block';
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, x + 12)) + 'px';
+    tip.style.top = Math.max(8, y - h - 10) + 'px';
+  }
+  function hide() { tip.style.display = 'none'; }
+  document.querySelectorAll('.mark').forEach(function (el) {
+    el.addEventListener('pointermove', function (e) { show(el, e.clientX, e.clientY); });
+    el.addEventListener('pointerleave', hide);
+    el.addEventListener('focus', function () { var r = el.getBoundingClientRect(); show(el, r.left + r.width / 2, r.top); });
+    el.addEventListener('blur', hide);
+  });
+})();
+</script>
+</body>
+</html>
